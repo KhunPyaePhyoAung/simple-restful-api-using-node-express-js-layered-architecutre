@@ -1,4 +1,5 @@
 const { response } = require('express');
+const ValidationError = require('../error/ValidationError');
 
 require('dotenv').config();
 
@@ -151,8 +152,8 @@ const userController = ({ userService }) => {
         deleteUserById: async (req, res) => {
             const id = req.params.id;
             try {
-                const deletedUser = await userService.deleteUserById(id);
-                if (deletedUser) {
+                const deleted = await userService.deleteUserById(id);
+                if (deleted) {
                     return res.status(204).end();
                 }
                 

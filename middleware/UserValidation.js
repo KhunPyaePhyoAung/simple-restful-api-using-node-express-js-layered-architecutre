@@ -46,6 +46,17 @@ const userCreateConstraints = {
         }
     },
 
+    gender: {
+        presence: {
+            message: '^Gender is required.'
+        },
+        
+        inclusion: {
+            within: ['MALE', 'FEMALE', 'OTHER'],
+            message: '^%{value} is not a valid role.'
+        }
+    },
+
     role: {
         presence: {
             message: '^Role is required.'

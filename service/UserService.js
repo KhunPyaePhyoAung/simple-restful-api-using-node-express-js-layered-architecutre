@@ -42,6 +42,7 @@ const userService = ({ userRepository, passwordEncryptService }) => {
         updateUser: async (id, user) => {
             try {
                 const intId = parseInt(id);
+                user.password = passwordEncryptService.encrypt(user.password);
                 const updatedUser = await userRepository.updateUser(intId, user);
                 return updatedUser;
             } catch (error) {
@@ -52,6 +53,7 @@ const userService = ({ userRepository, passwordEncryptService }) => {
         partialUpdateUser: async (id, user) => {
             try {
                 const intId = parseInt(id);
+                user.password = passwordEncryptService.encrypt(user.password);
                 const updatedUser = await userRepository.partialUpdateUser(intId, user);
                 return updatedUser;
             } catch (error) {
@@ -62,8 +64,8 @@ const userService = ({ userRepository, passwordEncryptService }) => {
         deleteUserById: async (id) => {
             try {
                 const intId = parseInt(id);
-                const deletedUser = await userRepository.deleteUserById(intId);
-                return deletedUser;
+                const deleted = await userRepository.deleteUserById(intId);
+                return deleted;
             } catch (error) {
                 throw error;
             }

@@ -3,10 +3,21 @@ const authService = ({ userRepository, passwordEncryptService} ) => {
         loginWithUsernameAndPassword: async (username, password) => {
             try {
                 const user = await userRepository.findUserByUsername(username);
-                if (user && passwordEncryptService.match(password, user.password) ) {
-                    return user;
+                const error = new Error();
+
+                if (!user) {
+                    error.field = 'username';
+                    error.message = 'Username does not exist';
+                    throw error;
                 }
-                return null;
+
+                if (!passwordEncryptService.match(password, user.password)) {
+                    error.field = 'password';
+                    error.message = 'Incorrect password';
+                    throw error;
+                }
+                
+                return user;
             } catch (error) {
                 throw error;
             }

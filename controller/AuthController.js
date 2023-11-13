@@ -6,26 +6,26 @@ const authController = ({ authService, userService, tokenService }) => {
             try {
                 const username = req.body.username;
                 const password = req.body.password;
-                let message = 'User does not exist.';
+                let message = 'Incorrect username or password';
                 const user = await authService.loginWithUsernameAndPassword(username, password);
-                if (user) {
-                    const accessToken = await tokenService.signAccessToken(user);
+                const accessToken = await tokenService.signAccessToken(user);
+                const refreshToken = await tokenService.signRefreshToken(user);
+                res.cookie('refresh_token', refreshToken, {httpOnly: true, sameSite: 'None', secure: true, maxAge: REFRESH_TOKEN_COOKIE_MAX_AGE});
 
-                    const refreshToken = await tokenService.signRefreshToken(user);
-
-                    res.cookie('refresh_token', refreshToken, {httpOnly: true, sameSite: 'None', secure: true, maxAge: REFRESH_TOKEN_COOKIE_MAX_AGE});
-
-                    return res.status(200).json({
-                        access_token: accessToken
-                    });
-                }
-
-                message = 'Incorrect password.';
-
-                return res.status(401).json({
-                    message
+                return res.status(200).json({
+                    access_token: accessToken
                 });
             } catch (error) {
+                if (error.field) {
+                    return res.status(401).json({
+                        error: [
+                            {
+                                field: error.field,
+                                message: error.message
+                            }
+                        ]
+                    });
+                }
                 return res.status(500).end();
             }
         },
