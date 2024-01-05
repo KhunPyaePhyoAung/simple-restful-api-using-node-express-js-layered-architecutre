@@ -18,4 +18,19 @@ pool.on('connection', function (connection) {
     console.log('Connected to database.');
 });
 
-module.exports = pool;
+const getConnection = async () => {
+    return new Promise((resolve, reject) => {
+        pool.getConnection((error, connection) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(connection);
+            }
+        });
+    });
+}
+
+module.exports = {
+    pool,
+    getConnection
+};

@@ -29,7 +29,6 @@ const productService = ({ productRepository, productImageRepository }) => {
                 const createdProuct = await productRepository.createProduct(product);
                 return createdProuct;
             } catch (error) {
-                console.log(error);
                 throw error;
             }
         },

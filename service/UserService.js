@@ -37,6 +37,7 @@ const userService = ({ userRepository, passwordEncryptService }) => {
             } catch (error) {
                 throw error;
             }
+            
         },
 
         updateUser: async (id, user) => {
@@ -53,7 +54,9 @@ const userService = ({ userRepository, passwordEncryptService }) => {
         partialUpdateUser: async (id, user) => {
             try {
                 const intId = parseInt(id);
-                user.password = passwordEncryptService.encrypt(user.password);
+                if (user.password) {
+                    user.password = passwordEncryptService.encrypt(user.password);
+                }
                 const updatedUser = await userRepository.partialUpdateUser(intId, user);
                 return updatedUser;
             } catch (error) {

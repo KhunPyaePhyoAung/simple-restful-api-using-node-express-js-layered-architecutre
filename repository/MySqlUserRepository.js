@@ -1,269 +1,188 @@
+const { result } = require('validate.js');
 const ValidationError = require('../error/ValidationError');
-const pool = require('../tool/MySqlPool');
+const {getConnection} = require('../tool/MySqlPool');
 
 const findAllUsers = async () => {
+    const connection = await getConnection();
+
     return new Promise((resolve, reject) => {
         const sql = 'SELECT * FROM `user`';
-        pool.query(sql, (error, results, fields) => {
+        connection.query(sql, (error, results, fields) => {
             if (error) {
                 reject(error);
+            } else {
+                resolve(results);
             }
-            resolve(results);
         });
+        connection.release();
     });
 };
 
 const findUserById = async (id) => {
+    const connection = await getConnection();
+
     return new Promise((resolve, reject) => {
         const sql = 'SELECT * FROM `user` WHERE `id` = ?';
         const params = [id];
-        pool.query(sql, params, (error, results) => {
+        connection.query(sql, params, (error, results) => {
             if (error) {
                 reject(error);
+            } else {
+                resolve(results[0]);
             }
-            resolve(results[0]);
+            connection.release();
         })
     });
 };
 
 const findUserByEmail = async (email) => {
+    const connection = await getConnection();
+
     return new Promise((resolve, reject) => {
         const sql = 'SELECT * FROM `user` WHERE `email` = ?';
         const params = [email];
-        pool.query(sql, params, (error, results) => {
+        connection.query(sql, params, (error, results) => {
             if (error) {
                 reject(error);
+            } else {
+                resolve(results[0]);
             }
-
-            resolve(results[0]);
+            connection.release();
         });
     });
 };
 
 const findUserByUsername = async (username) => {
+    const connection = await getConnection();
+
     return new Promise((resolve, reject) => {
         const sql = 'SELECT * FROM `user` WHERE `email` = ?';
         const params = [username];
-        pool.query(sql, params, (error, results) => {
+        connection.query(sql, params, (error, result) => {
             if (error) {
                 reject(error);
+            } else {
+                resolve(result[0]);
             }
-
-            resolve(results[0]);
+            connection.release();
         });
     });
 };
 
 const createUser = async (user) => {
-    return new Promise((resolve, reject) => {
-        
-        pool.getConnection((error, connection) => {
+    const connection = await getConnection();
+
+    const insertedId = await new Promise((resolve, reject) => {
+        const insertSql = 'INSERT INTO `user` (`name`, `email`, `password`, `gender`, `role`) VALUES (?, ?, ?, ?, ?)';
+        const insertParams = [user.name, user.email, user.password, user.gender, user.role];
+        connection.query(insertSql, insertParams, (error, result) => {
             if (error) {
-                return reject(error);
-            }
-
-            connection.beginTransaction(transactionError => {
-                if (transactionError) {
-                    return reject(transactionError);
+                if (error.code === 'ER_DUP_ENTRY') {
+                    const duplicateError = new ValidationError('This email already exists.', 'email');
+                    reject(duplicateError);
+                }  else {
+                    reject(error);
                 }
-
-                const insertQuery = 'INSERT INTO `user` (`name`, `email`, `password`, `gender`, `role`) VALUES (?, ?, ?, ?, ?)';
-                const insertParams = [user.name, user.email, user.password, user.gender, user.role];
-
-                connection.query(insertQuery, insertParams, (insertError, insertResults) => {
-                    if (insertError) {
-                        if (insertError.code === 'ER_DUP_ENTRY') {
-                            const duplicateError = new ValidationError('This email already exists.', 'email');
-                            return connection.rollback(() => {
-                                return reject(duplicateError);
-                            });
-                        } else {
-                            return connection.rollback(() => {
-                                return reject(insertError);
-                            });
-                        }
-                        
-                    }
-                    connection.commit(commitError => {
-                        if (commitError) {
-                            return connection.rollback(() => {
-                                return reject(commitError);
-                            });
-                        }
-                        
-                    });
-
-                    const selectQuery = 'SELECT * FROM `user` WHERE `id` = ?';
-                    const selectParams = [insertResults.insertId];
-                    connection.query(selectQuery, selectParams, (selectError, selectResults) => {
-                        if (selectError) {
-                            return reject(selectError);
-                        }
-                        connection.release();
-                        return resolve(selectResults[0]);
-                    });
-
-                });
-            });
-            
+            } else {
+                resolve(result.insertId);
+            }
         });
     });
+
+    connection.release();
+    
+    const createdUser = await findUserById(insertedId);
+
+    return createdUser;
 };
 
 const updateUser = async (id, user) => {
-    return new Promise((resolve, reject) => {
-        pool.getConnection((connectionError, connection) => {
-            if (connectionError) {
-                reject(connectionError);
-            }
 
-            connection.beginTransaction(transactionError => {
-                if (transactionError) {
-                    reject(transactionError);
+    const connection = await getConnection();
+
+    const affectedRows = await new Promise((resolve, reject) => {
+        const updateQuery = 'UPDATE `user` SET `name` = ?, `email` = ?, `password` = ?, `gender` = ?, `role` = ? WHERE `id` = ?';
+        const updateParams = [user.name, user.email, user.password, user.gender, user.role, id];
+        connection.query(updateQuery, updateParams, (error, result) => {
+            if (error) {
+                if (error.code === 'ER_DUP_ENTRY') {
+                    const duplicateError = new ValidationError('This email already exists.', 'email');
+                    reject(duplicateError);
+                } else {
+                    reject(error);
                 }
-
-                const updateQuery = 'UPDATE `user` SET `name` = ?, `email` = ?, `password` = ?, `gender` = ?, `role` = ? WHERE `id` = ?';
-                const updateParams = [user.name, user.email, user.password, user.gender, user.role, user.id];
-                connection.query(updateQuery, updateParams, (updateError, updateResults) => {
-                    if (updateError) {
-                        if (updateError.code === 'ER_DUP_ENTRY') {
-                            const duplicateError = new ValidationError('This email already exists.', 'email');
-                            return connection.rollback(() => {
-                                return reject(duplicateError);
-                            });
-                        } else {
-                            return connection.rollback(() => {
-                                return reject(updateError);
-                            });
-                        }
-                    }
-                    if (updateResults.affectedRows === 1) {
-                        connection.commit(commitError => {
-                            if (commitError) {
-                                return connection.rollback(() => {
-                                    return reject(commitError);
-                                });
-                            }
-                        })
-                        const selectQuery = 'SELECT * FROM `user` WHERE `id` = ?';
-                        const selectParams = [id];
-                        connection.query(selectQuery, selectParams, (selectError, selectResults) => {
-                            if (selectError) {
-                                return reject(selectError);
-                            }
-
-                            return resolve(selectResults[0]);
-                        })
-                    } else {
-                        return reject(new Error('User not found.'));
-                    }
-                });
-
-            })
+            } else {
+                resolve(result.affectedRows);
+            }
         });
     });
+
+    connection.release();
+
+    user.id = id;
+
+    return affectedRows ? await findUserById(id) : user;
 };
 
 const partialUpdateUser = async (id, user) => {
     delete user.id;
-    return new Promise((resolve, reject) => {
-        pool.getConnection((connectionError, connection) => {
-            if (connectionError) {
-                reject(connectionError);
+
+    const connection = await getConnection();
+
+    const affectedRows = await new Promise((resolve, reject) => {
+        let updateSql = 'UPDATE `user` SET';
+        let updateParams = [];
+        let isFirst = true;
+        Object.entries(user).forEach(entry => {
+            const [key, value] = entry;
+            if (!isFirst) {
+                updateSql += ',';
+                isFirst = false;
             }
-
-            connection.beginTransaction(transactionError => {
-                if (transactionError) {
-                    reject(transactionError);
+            updateSql += ` ${key} = ?`;
+            updateParams.push(value);
+        });
+        updateSql += ' WHERE `id` = ?';
+        updateParams.push(id);
+        connection.query(updateSql, updateParams, (error, result) => {
+            if (error) {
+                if (error.code === 'ER_DUP_ENTRY') {
+                    const duplicateError = new ValidationError('This email already exists.', 'email');
+                    reject(duplicateError);
+                } else {
+                    reject(error);
                 }
-
-                let updateQuery = 'UPDATE `user` SET ';
-                let updateParams = [];
-                let comma = '';
-                Object.keys(user).forEach(key => {
-                    updateQuery += comma + ' `' + key + '` = ?';
-                    updateParams.push(user[key]);
-                    comma = ',';
-                });
-
-                updateQuery += ' WHERE `id` = ?';
-                updateParams.push(id);
-
-                connection.query(updateQuery, updateParams, (updateError, updateResults) => {
-                    if (updateError) {
-                        if (updateError.code === 'ER_DUP_ENTRY') {
-                            const duplicateError = new ValidationError('This email already exists.', 'email');
-                            return connection.rollback(() => {
-                                return reject(duplicateError);
-                            });
-                        } else {
-                            return connection.rollback(() => {
-                                return reject(updateError);
-                            });
-                        }
-                    }
-                    if (updateResults.affectedRows === 1) {
-                        connection.commit(commitError => {
-                            if (commitError) {
-                                return connection.rollback(() => {
-                                    return reject(commitError);
-                                });
-                            }
-                        })
-                        const selectQuery = 'SELECT * FROM `user` WHERE `id` = ?';
-                        const selectParams = [id];
-                        connection.query(selectQuery, selectParams, (selectError, selectResults) => {
-                            if (selectError) {
-                                return reject(selectError);
-                            }
-
-                            return resolve(selectResults[0]);
-                        })
-                    } else {
-                        return reject(new Error('User not found.'));
-                    }
-                });
-
-            })
+            } else {
+                resolve(result.affectedRows);
+            }
         });
     });
+
+    connection.release();
+
+    user.id = id;
+    return affectedRows ? await findUserById(id) : user;
 };
 
 const deleteUserById = async (id) => {
-    return new Promise((resolve, reject) => {
-        pool.getConnection((connectionError, connection) => {
-            if (connectionError) {
-                return reject(connectionError);
+
+    const connection = await getConnection();
+
+    const affectedRows = await new Promise((resolve, reject) => {
+        const deleteSql = 'DELETE FROM `user` WHERE `id` = ?';
+        const deleteParams = [id];
+        connection.query(deleteSql, deleteParams, (error, result) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(result.affectedRows);
             }
-
-            connection.beginTransaction(transactionError => {
-                if (transactionError) {
-                    return reject(transactionError);
-                }
-
-                const deleteQuery = 'DELETE FROM `user` WHERE `id` = ?';
-                const deleteParams = [id];
-
-                connection.query(deleteQuery, deleteParams, (deleteError, deleteResults) => {
-                    if (deleteError) {
-                        return connection.rollback(() => {
-                            reject(deleteError);
-                        });
-                    }
-
-                    connection.commit(commitError => {
-                        if (commitError) {
-                            return connection.rollback(() => {
-                                reject(commitError);
-                            });
-                        }
-                    })
-
-                    return resolve(deleteResults.affectedRows === 1);
-                });
-            });
         });
     });
+
+    connection.release();
+
+    return affectedRows === 1;
 };
 
 module.exports = {
