@@ -9,6 +9,7 @@ const productService = ({ productRepository, productImageRepository }) => {
                 const products = await productRepository.findAllProducts();
                 return products;
             } catch (error) {
+                console.log(error);
                 throw error;
             }
         },

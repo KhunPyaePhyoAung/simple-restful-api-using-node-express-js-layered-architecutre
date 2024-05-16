@@ -22,6 +22,7 @@ const getConnection = async () => {
     return new Promise((resolve, reject) => {
         pool.getConnection((error, connection) => {
             if (error) {
+                console.log(error);
                 reject(error);
             } else {
                 resolve(connection);

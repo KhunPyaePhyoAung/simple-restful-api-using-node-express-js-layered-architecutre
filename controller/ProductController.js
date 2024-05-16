@@ -18,6 +18,7 @@ const productController = ({ productService }) => {
                     data: products
                 });
             } catch (error) {
+                console.log(error);
                 return res.status(500).end();
             }
         },

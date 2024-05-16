@@ -1,0 +1,27 @@
+version: '2'
+services:
+  smile_footwear_api:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-alpine
+        WORKDIR /app
+        COPY . /app
+        RUN npm install
+        CMD ["node", "index.js"]
+    ports:
+      - 3500:3500
+    depends_on:
+      - db
+  db:
+    image: mysql:8.0
+    ports:
+      - 3306:3306
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - ./pre_sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
+    environment:
+      - MYSQL_ROOT_PASSWORD=admin
+      - MYSQL_USER=local
+      - MYSQL_PASSWORD=local
+      - MYSQL_DATABASE=smile_footwear
